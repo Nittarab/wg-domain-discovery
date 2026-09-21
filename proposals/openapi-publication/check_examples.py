@@ -154,7 +154,7 @@ def build():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--write', action='store_true', help='Write final publication artifacts to build/')
+    parser.add_argument('--write', action='store_true', help='Refresh tracked final examples and write publication artifacts to build/')
     args = parser.parse_args()
     for service, document in build().items():
         entry = read(service + '.well-known.json')
@@ -167,6 +167,17 @@ def main():
                     require(operation['x-x402']['x402Version'] == entry['x402Version'],
                             'Entry and operation protocol versions differ')
         check_refs(document, document)
+        snapshot = EXAMPLES / (service + '.final.openapi.json')
+        if args.write:
+            snapshot.write_text(json.dumps(document, indent=2) + '\n')
+        require(json.loads(snapshot.read_text()) == document,
+                'Final example differs from generated output: ' + service)
+        if service == 'stabletravel':
+            proposal = (ROOT / 'proposal.md').read_text()
+            inline = proposal.split('<!-- final-stabletravel:start -->', 1)[1].split(
+                '<!-- final-stabletravel:end -->', 1)[0]
+            require(json.loads(inline.split('```json\n', 1)[1].split('```', 1)[0]) == document,
+                    'Proposal final OpenAPI differs from generated output')
         if args.write:
             destination = ROOT / 'build' / service
             (destination / '.well-known').mkdir(parents=True, exist_ok=True)
