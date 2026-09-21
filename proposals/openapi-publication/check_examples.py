@@ -182,7 +182,7 @@ def main():
             destination = ROOT / 'build' / service
             (destination / '.well-known').mkdir(parents=True, exist_ok=True)
             for path, content in [(destination / 'openapi.json', document),
-                                  (destination / '.well-known/x402', entry)]:
+                                  (destination / '.well-known/x402.json', entry)]:
                 path.write_text(json.dumps(content, indent=2) + '\n')
     print('PASS: source integrity, references, direct/overlay equivalence, preserved contracts, optional prices and ranges, no vendor fields, authentication, entry URLs, missing target')
 
