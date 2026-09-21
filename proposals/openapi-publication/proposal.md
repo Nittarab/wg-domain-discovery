@@ -193,6 +193,93 @@ The following complete OpenAPI Overlay applies to the service's base OpenAPI des
 
 Applying this overlay preserves the operation's input and success-response contracts. The publisher serves the resulting OpenAPI document at the URL in the discovery entry. Direct generation adds the same `x-x402`, description, and header definitions to the operation without an overlay.
 
+### Final combined OpenAPI document
+
+The result below is the complete OpenAPI document for the single StableTravel endpoint. It includes the base operation's required `source` parameter and full response schema, together with the overlay's description, payment challenge header, and `x-x402` annotation. This is the document referenced by `/.well-known/x402` and read by clients.
+
+<!-- final-stabletravel:start -->
+```json
+{
+  "openapi": "3.1.0",
+  "servers": [{"url": "https://stabletravel.dev"}],
+  "info": {"title": "StableTravel", "version": "1.0.0"},
+  "paths": {
+    "/api/seats-aero/routes": {
+      "get": {
+        "operationId": "seats-aero_routes",
+        "summary": "List airline flight route pairs covered by a Seats.aero mileage program source. These are origin/destination airport pairs, not API routes.",
+        "tags": ["Seats Aero"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Seats.aero mileage program source, such as united or aeroplan"
+            },
+            "required": true,
+            "description": "Seats.aero mileage program source, such as united or aeroplan"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "ID": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                      "Source": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                      "OriginAirport": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                      "DestinationAirport": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                      "OriginRegion": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                      "DestinationRegion": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                      "Distance": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+                      "NumDaysOut": {"anyOf": [{"type": "number"}, {"type": "null"}]}
+                    },
+                    "additionalProperties": {}
+                  }
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required",
+            "headers": {
+              "PAYMENT-REQUIRED": {
+                "description": "Base64-encoded x402 v2 PaymentRequired object. Obtain fresh request-specific terms before payment.",
+                "schema": {"type": "string"}
+              }
+            }
+          }
+        },
+        "description": "List airline flight route pairs covered by a Seats.aero mileage program source. These are origin/destination airport pairs, not API routes.",
+        "x-x402": {
+          "x402Version": 2,
+          "price": {"currency": "USD", "min": "0.010000", "max": "0.010000"},
+          "accepts": [
+            {
+              "scheme": "exact",
+              "network": "eip155:8453",
+              "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+              "payTo": "0xDd257723b86B4947483905cdAcBbBC70fACF2ec0",
+              "payToType": "address"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+```
+<!-- final-stabletravel:end -->
+
+The [base OpenAPI](examples/stabletravel.source.openapi.json), [overlay](examples/stabletravel.overlay.json), and [final combined OpenAPI](examples/stabletravel.final.openapi.json) are included in the repository. The base capture's source-specific payment metadata is removed before composition, as described in the example documentation.
+
 ### Variable price asynchronous service
 
 StableStudio's `POST /api/generate/nano-banana-pro/generate` accepts a prompt, aspect ratio, and image size. It returns a job identifier and polling URL. Its documented price range is represented as:
