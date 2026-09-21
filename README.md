@@ -2,7 +2,7 @@
 
 [Read the technical proposal](proposals/openapi-publication/proposal.md).
 
-The proposal shows exactly what to publish at `/.well-known/x402`, where to add the proposed `x-x402` annotation in OpenAPI, and how direct generation and overlay composition produce the same result.
+The proposal shows exactly what to publish at `/.well-known/x402.json`, where to add the proposed `x-x402` annotation in OpenAPI, and how direct generation and overlay composition produce the same result.
 
 Examples use selected real StableTravel and StableStudio operations, with their source input/output schemas. The entry files and payment annotations are proposals, not deployed merchant features.
 

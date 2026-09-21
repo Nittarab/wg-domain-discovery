@@ -6,7 +6,7 @@ Draft proposal — 21 September 2026
 
 Define a domain discovery profile for x402 services with two elements:
 
-- A JSON document at `/.well-known/x402` that links to the service's final OpenAPI descriptions.
+- A JSON document at `/.well-known/x402.json` that links to the service's final OpenAPI descriptions.
 - An operation-level `x-x402` extension that advertises the x402 version, optional prices, payment options, and extension capabilities.
 
 Publishers may generate the final OpenAPI description directly or compose it with an OpenAPI Overlay. Both publication paths produce the same contract for clients. The publisher controls publication and may delegate generation or hosting to a provider.
@@ -19,9 +19,21 @@ A well-known entry gives clients a consistent starting point without duplicating
 
 Discovery describes advertised capabilities. The live x402 exchange remains authoritative for payment and authentication requirements.
 
+## Design principles
+
+1. **Publisher control.** Publication is opt-in. The publisher chooses the advertised operations and authorizes any provider that generates or hosts the description.
+2. **A small entry and a complete API description.** `/.well-known/x402.json` points to final OpenAPI documents. Inputs, outputs, authentication, and operation-level payment metadata remain together in OpenAPI.
+3. **Reuse existing standards.** Use OpenAPI for API contracts, OpenAPI Overlay for optional composition, HTTP validators for refresh, and existing x402 identifiers for payment capabilities.
+4. **Equivalent publication paths.** Direct generation and overlay composition produce the same client-facing contract. A client does not need to apply overlays, and a publisher does not need a managed provider to participate.
+5. **Advertise only what is known.** Prices, payment options, and recipients are optional. Missing information means unspecified; it does not imply free access or unsupported payment capabilities.
+6. **Runtime terms are authoritative.** Discovery supports selection and planning. It does not authorize payment. The live exchange determines payment and authentication requirements for the request.
+7. **Authentication and payment are distinct.** Describe authentication with OpenAPI security declarations. Support paid, unpaid, and authenticated follow-up operations without treating HTTP 402 alone as proof of a payment requirement.
+8. **Keep discovery public and limited in scope.** Publish service capabilities, not request-specific credentials or buyer information. Tax metadata, tax calculation, and legal determinations are outside this discovery profile.
+9. **Allow capabilities to evolve.** Scheme and extension identifiers can expand without adding a separate discovery field for each mechanism. Prefer maintaining discovery within the x402 protocol specification, as described in Option A.
+
 ## Protocol integration and versioning
 
-Two approaches are proposed for consideration. Both use `/.well-known/x402` and the same OpenAPI annotations.
+Two approaches are proposed for consideration. Both use `/.well-known/x402.json` and the same OpenAPI annotations.
 
 ### Option A Discovery within the x402 protocol — preferred
 
@@ -57,7 +69,7 @@ This is the author's preference, not an adopted working-group decision. The exam
 
 ## Discovery entry
 
-The publisher exposes `/.well-known/x402` as JSON with `Content-Type: application/json`.
+The publisher exposes `/.well-known/x402.json` as JSON with `Content-Type: application/json`.
 
 | Field | Type | Definition |
 | --- | --- | --- |
@@ -124,6 +136,12 @@ Clients consume the final description in both cases. They do not need to fetch o
 The OpenAPI description documents the x402 HTTP 402 response and its `PAYMENT-REQUIRED` header, which carries a base64-encoded `PaymentRequired` object. It also includes unpaid and authenticated follow-up operations needed to use the advertised service.
 
 Publication is opt-in. Publishers regenerate descriptions when routes, payment configuration, or advertised prices change. Retiring operations use OpenAPI `deprecated: true`; withdrawn operations are removed from the next publication. HTTP responses remain authoritative about current availability. Cached discovery does not guarantee that an endpoint or price remains available.
+
+### Document refresh
+
+Publishers SHOULD provide `Last-Modified` for the discovery entry and each linked OpenAPI document when their modification times can be determined reliably. Publishers SHOULD also provide `ETag` to identify a revision of each representation. These are HTTP response headers, not fields in the discovery JSON.
+
+Clients can revalidate a cached document with `If-None-Match` using its `ETag`, or with `If-Modified-Since` using its `Last-Modified` value. An unchanged representation can return `304 Not Modified` without a response body. When both conditions are sent, `If-None-Match` takes precedence. Each linked document is revalidated independently: an unchanged entry does not imply that its linked OpenAPI descriptions are unchanged. Validators describe document revisions, not the accuracy or continued availability of advertised payment terms. See [HTTP validator fields](https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8).
 
 ## Examples
 
@@ -195,7 +213,7 @@ Applying this overlay preserves the operation's input and success-response contr
 
 ### Final combined OpenAPI document
 
-The result below is the complete OpenAPI document for the single StableTravel endpoint. It includes the base operation's required `source` parameter and full response schema, together with the overlay's description, payment challenge header, and `x-x402` annotation. This is the document referenced by `/.well-known/x402` and read by clients.
+The result below is the complete OpenAPI document for the single StableTravel endpoint. It includes the base operation's required `source` parameter and full response schema, together with the overlay's description, payment challenge header, and `x-x402` annotation. This is the document referenced by `/.well-known/x402.json` and read by clients.
 
 <!-- final-stabletravel:start -->
 ```json

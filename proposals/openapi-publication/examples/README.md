@@ -29,7 +29,7 @@ python3 proposals/openapi-publication/check_examples.py --write
 
 The generated final documents are committed as [stabletravel.final.openapi.json](stabletravel.final.openapi.json) and [stablestudio.final.openapi.json](stablestudio.final.openapi.json). `--write` refreshes those files. The checker verifies that they match the generated output and that the complete StableTravel document embedded in the proposal matches as well.
 
-Publication outputs are also written under `proposals/openapi-publication/build/`, with one `openapi.json` and one `.well-known/x402` entry per service. The command is offline and does not publish files or make payments.
+Publication outputs are also written under `proposals/openapi-publication/build/`, with one `openapi.json` and one `.well-known/x402.json` entry per service. The command is offline and does not publish files or make payments.
 
 The check verifies captured operation hashes, local references, direct/overlay equivalence, preservation of input/output contracts, optional prices and ranges, authentication, entry URLs, and rejection of missing overlay targets. It is not a general OpenAPI, JSON Schema, or Overlay validator. Validate annotations separately against `../x-x402.schema.json`.
 
