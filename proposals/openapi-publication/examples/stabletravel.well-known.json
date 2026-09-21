@@ -1,0 +1,6 @@
+{
+  "discoveryVersion": "1",
+  "openapi": [
+    "https://stabletravel.dev/openapi.json"
+  ]
+}

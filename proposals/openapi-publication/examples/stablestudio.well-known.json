@@ -1,0 +1,6 @@
+{
+  "discoveryVersion": "1",
+  "openapi": [
+    "https://stablestudio.dev/openapi.json"
+  ]
+}
