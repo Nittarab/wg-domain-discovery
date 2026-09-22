@@ -23,7 +23,7 @@ Discovery describes advertised capabilities. The live x402 exchange remains auth
 
 1. **Publisher control.** Publication is opt-in. The publisher chooses the advertised operations and authorizes any provider that generates or hosts the description.
 2. **A small entry and a complete API description.** `/.well-known/x402.json` points to final OpenAPI documents. Inputs, outputs, authentication, and operation-level payment metadata remain together in OpenAPI.
-3. **Reuse existing standards.** Use OpenAPI for API contracts, OpenAPI Overlay for optional composition, HTTP validators for refresh, and existing x402 identifiers for payment capabilities.
+3. **Reuse existing standards.** Use OpenAPI for API contracts, OpenAPI Overlay for optional composition, and existing x402 identifiers for payment capabilities.
 4. **Equivalent publication paths.** Direct generation and overlay composition produce the same client-facing contract. A client does not need to apply overlays, and a publisher does not need a managed provider to participate.
 5. **Advertise only what is known.** Prices, payment options, and recipients are optional. Missing information means unspecified; it does not imply free access or unsupported payment capabilities.
 6. **Runtime terms are authoritative.** Discovery supports selection and planning. It does not authorize payment. The live exchange determines payment and authentication requirements for the request.
@@ -137,11 +137,7 @@ The OpenAPI description documents the x402 HTTP 402 response and its `PAYMENT-RE
 
 Publication is opt-in. Publishers regenerate descriptions when routes, payment configuration, or advertised prices change. Retiring operations use OpenAPI `deprecated: true`; withdrawn operations are removed from the next publication. HTTP responses remain authoritative about current availability. Cached discovery does not guarantee that an endpoint or price remains available.
 
-### Document refresh
-
-Publishers SHOULD provide `Last-Modified` for the discovery entry and each linked OpenAPI document when their modification times can be determined reliably. Publishers SHOULD also provide `ETag` to identify a revision of each representation. These are HTTP response headers, not fields in the discovery JSON.
-
-Clients can revalidate a cached document with `If-None-Match` using its `ETag`, or with `If-Modified-Since` using its `Last-Modified` value. An unchanged representation can return `304 Not Modified` without a response body. When both conditions are sent, `If-None-Match` takes precedence. Each linked document is revalidated independently: an unchanged entry does not imply that its linked OpenAPI descriptions are unchanged. Validators describe document revisions, not the accuracy or continued availability of advertised payment terms. See [HTTP validator fields](https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8).
+Publishers MAY provide the standard HTTP `Last-Modified` response header for the discovery entry and each linked OpenAPI document to help clients check for updates.
 
 ## Examples
 
