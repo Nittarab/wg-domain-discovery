@@ -33,7 +33,7 @@ Discovery describes advertised capabilities. The live x402 exchange remains auth
 6. **Runtime terms are authoritative.** Discovery supports selection and planning. It does not authorize payment. The live exchange determines payment and authentication requirements for the request.
 7. **Authentication and payment are distinct.** Describe authentication with OpenAPI security declarations. Support paid, unpaid, and authenticated follow-up operations without treating HTTP 402 alone as proof of a payment requirement.
 8. **Keep discovery public and limited in scope.** Publish service capabilities, not request-specific credentials or buyer information. Tax metadata, tax calculation, and legal determinations are outside this discovery profile.
-9. **Allow capabilities to evolve.** Scheme and extension identifiers can expand without adding a separate discovery field for each mechanism. Prefer maintaining discovery within the x402 protocol specification, as described in Option A.
+9. **Allow capabilities to evolve.** Scheme and extension identifiers can expand without adding a separate discovery field for each mechanism. Prefer maintaining discovery within the x402 HTTP transport specification, as described in Option A.
 
 ## Protocol integration and versioning
 
@@ -51,6 +51,8 @@ Define the entry format and OpenAPI annotations as part of the x402 protocol spe
 ```
 
 The entry's `x402Version` identifies the supported x402 payment protocol, initially `2`. Each advertised operation's `x-x402.x402Version` MUST match that version. Clients MUST NOT interpret a missing or unsupported entry version as `2`. Discovery changes follow the protocol's specification and compatibility process; `x402Version` is not an independent discovery version. Rules for future incompatible discovery changes and for advertising multiple protocol versions in one entry remain to be defined.
+
+Because the well-known entry and OpenAPI annotations are HTTP-specific, they would be specified in the HTTP transport specification (`specs/transports-v2/http.md`) rather than in the transport-agnostic core specification. The annotation reuses core types and identifiers (`scheme`, `network`, `asset`, `payTo`, extension keys) without redefining them. Other transports, such as MCP, can define their own discovery later.
 
 ### Option B Separate discovery version
 
@@ -113,6 +115,10 @@ The proposed `x-x402` extension is a member of an OpenAPI Operation Object, alon
 ### Prices
 
 Price information is optional, including fixed prices. If `price` is present, `currency`, `min`, and `max` are required. Both bounds are nonnegative decimal strings in major units of the stated ISO 4217 currency, and `min` MUST be less than or equal to `max`. Equal bounds indicate fixed advertised pricing.
+
+`price` describes the value of the `amount` in a single `PaymentRequirements` for one request to the operation, expressed in `currency`. Its meaning follows the scheme's definition of `amount`: for `upto`, the bounds describe the authorized maximum, and the settled amount can be lower.
+
+Unlike `amount`, `price` uses decimal major units rather than atomic units. It is a reference value across assets that is never signed or settled; it must express ranges; and atomic fiat units cannot represent sub-cent prices common in x402. Server SDKs configure prices the same way (for example, `"$0.01"`) before converting to atomic `amount`.
 
 A range describes advertised prices across supported inputs. Clients MUST NOT interpret an omitted price as zero or an advertised maximum as a guaranteed spending cap. The price is not a request-specific quote or an asset exchange rate. Charging conditions use the existing OpenAPI operation `description`, consistent with runtime `resource.description`.
 
