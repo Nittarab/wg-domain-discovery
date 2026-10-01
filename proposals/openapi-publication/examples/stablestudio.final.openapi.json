@@ -126,12 +126,22 @@
         },
         "description": "Generate an image with Nano Banana Pro. Returns an asynchronous job; poll its pollUrl with SIWX until the job is complete or failed. The price is dynamic within the advertised range; the live challenge gives the exact amount for the request.",
         "x-x402": {
-          "x402Version": 2,
-          "price": {
-            "currency": "USD",
-            "min": "0",
-            "max": "10.00"
-          }
+          "accepts": [
+            {
+              "scheme": "exact",
+              "network": "eip155:8453",
+              "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+              "minAmount": "0",
+              "maxAmount": "10000000"
+            },
+            {
+              "scheme": "exact",
+              "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+              "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+              "minAmount": "0",
+              "maxAmount": "10000000"
+            }
+          ]
         }
       }
     },
@@ -215,10 +225,9 @@
           }
         ],
         "x-x402": {
-          "x402Version": 2,
-          "extensions": [
-            "sign-in-with-x"
-          ]
+          "extensions": {
+            "sign-in-with-x": {}
+          }
         }
       }
     }

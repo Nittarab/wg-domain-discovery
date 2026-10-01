@@ -30,5 +30,14 @@
     "header": "PAYMENT-REQUIRED",
     "scope": "Base option and resource retained; Solana option and Bazaar schema omitted. outputExample copied from Bazaar; not a purchased data response.",
     "paymentMade": false
+  },
+  "stablestudioChallenge": {
+    "captured": "2026-10-01",
+    "url": "https://stablestudio.dev/api/generate/nano-banana-pro/generate",
+    "request": "POST with body {\"prompt\": \"a lighthouse at dusk\"}, default aspectRatio and imageSize",
+    "httpStatus": 402,
+    "header": "PAYMENT-REQUIRED",
+    "scope": "Decoded PaymentRequired retained without the bazaar extension.",
+    "paymentMade": false
   }
 }

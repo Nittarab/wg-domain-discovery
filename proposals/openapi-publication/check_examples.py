@@ -64,10 +64,26 @@ def check_refs(value, document):
             check_refs(child, document)
 
 
-def check_price(annotation):
-    if 'price' in annotation:
-        price = annotation['price']
-        require(Decimal(price['min']) <= Decimal(price['max']), 'Price min exceeds max')
+# Decimals of the USDC assets used in the captured challenges.
+USDC_DECIMALS = {'0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913': 6,
+                 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': 6}
+
+
+def atomic(price, asset):
+    return str(int(Decimal(price) * 10 ** USDC_DECIMALS[asset]))
+
+
+def check_amounts(annotation):
+    for option in annotation.get('accepts', []):
+        if 'minAmount' in option or 'maxAmount' in option:
+            require({'minAmount', 'maxAmount', 'asset'} <= set(option),
+                    'Amount bounds require minAmount, maxAmount and asset')
+            require(int(option['minAmount']) <= int(option['maxAmount']), 'minAmount exceeds maxAmount')
+
+
+def option_summary(option, low, high):
+    return {'scheme': option['scheme'], 'network': option['network'], 'asset': option['asset'],
+            'minAmount': low, 'maxAmount': high}
 
 
 def build():
@@ -94,13 +110,14 @@ def build():
     operation = travel['paths'][TRAVEL_PATH]['get']
     operation['description'] = challenge['resource']['description'] + ' Charged per request.'
     source_price = sources['stabletravel']['paths'][TRAVEL_PATH]['get']['x-payment-info']['price']
-    amount = str(Decimal(source_price['amount']).normalize())
-    operation['x-x402'] = {
-        'x402Version': 2,
-        'price': {'currency': source_price['currency'], 'min': amount, 'max': amount},
-        'accepts': [dict({key: option[key] for key in ['scheme', 'network', 'asset', 'payTo']},
-                         payToType='address') for option in challenge['accepts']]}
-    check_price(operation['x-x402'])
+    require(source_price['currency'] == 'USD', 'StableTravel price is no longer in USD')
+    for option in challenge['accepts']:
+        # The documented USD price and the live USDC amount must agree.
+        require(atomic(source_price['amount'], option['asset']) == option['amount'],
+                'Documented price and live amount differ')
+    operation['x-x402'] = {'accepts': [option_summary(option, option['amount'], option['amount'])
+                                       for option in challenge['accepts']]}
+    check_amounts(operation['x-x402'])
     operation['responses']['402']['headers'] = {'PAYMENT-REQUIRED': {
         'description': 'Base64-encoded x402 v2 PaymentRequired object. Obtain fresh request-specific terms before payment.',
         'schema': {'type': 'string'}}}
@@ -131,38 +148,41 @@ def build():
         'operationId': 'jobs_status', 'parameters': {'jobId': '$response.body#/jobId'}}}
     studio['components']['securitySchemes']['siwx']['description'] = (
         'Base64-encoded SIWX proof obtained by signing a fresh server challenge.')
-    studio['paths'][STUDIO_PATH]['post']['x-x402'] = {
-        'x402Version': 2,
-        'price': {key: source_price[key] for key in ['currency', 'min', 'max']}}
-    studio['paths'][STUDIO_PATH]['post']['responses']['402']['headers'] = copy.deepcopy(
-        operation['responses']['402']['headers'])
-    check_price(studio['paths'][STUDIO_PATH]['post']['x-x402'])
+    require({key: source_price[key] for key in ['currency', 'min', 'max']} ==
+            {'currency': 'USD', 'min': '0', 'max': '10.00'}, 'Captured price range changed')
+    studio_challenge = read('stablestudio.challenge-excerpt.json')
+    generate['x-x402'] = {'accepts': [
+        option_summary(option, atomic(source_price['min'], option['asset']),
+                       atomic(source_price['max'], option['asset']))
+        for option in studio_challenge['accepts']]}
+    check_amounts(generate['x-x402'])
+    for option, summary in zip(studio_challenge['accepts'], generate['x-x402']['accepts']):
+        require(int(summary['minAmount']) <= int(option['amount']) <= int(summary['maxAmount']),
+                'Live amount outside the advertised range')
+    generate['responses']['402']['headers'] = copy.deepcopy(operation['responses']['402']['headers'])
     poll = studio['paths']['/api/jobs/{jobId}']['get']
     poll['parameters'] = [{'name': 'jobId', 'in': 'path', 'required': True,
                            'schema': {'type': 'string'}}]
-    poll['x-x402'] = {'x402Version': 2, 'extensions': ['sign-in-with-x']}
-    require(poll['security'] == [{'siwx': []}] and not {'price', 'accepts'} & set(poll['x-x402']),
+    poll['x-x402'] = {'extensions': {'sign-in-with-x': {}}}
+    require(poll['security'] == [{'siwx': []}] and 'accepts' not in poll['x-x402'],
             'Polling authentication incorrectly changed to payment')
     require(any(op.get('operationId') == 'jobs_status'
                 for item in studio['paths'].values() for op in item.values() if isinstance(op, dict)),
             'Generate link targets a missing operation')
-    require(studio['paths'][STUDIO_PATH]['post']['x-x402']['price'] ==
-            {'currency': 'USD', 'min': '0', 'max': '10.00'},
-            'Captured price range changed')
     for document in [travel, studio]:
         for item in document['paths'].values():
             for op in item.values():
-                if isinstance(op, dict) and 'price' in op.get('x-x402', {}):
+                if isinstance(op, dict) and 'accepts' in op.get('x-x402', {}):
                     require('PAYMENT-REQUIRED' in op['responses']['402'].get('headers', {}),
                             'Paid example lacks payment challenge header documentation')
         require('x-payment-info' not in json.dumps(document), 'Source convention leaked into publication')
-    check_price({'x402Version': 2})  # Omitted price is valid, not free.
-    try:
-        check_price({'price': {'min': '10', 'max': '1'}})
-    except ValueError:
-        pass
-    else:
-        raise ValueError('Inverted range accepted')
+    check_amounts({})  # Omitted amounts are valid, not free.
+    for bad_option in [{'minAmount': '10', 'maxAmount': '1', 'asset': 'USD'}, {'minAmount': '1', 'asset': 'USD'}]:
+        try:
+            check_amounts({'accepts': [dict(bad_option, scheme='exact', network='eip155:8453')]})
+        except ValueError:
+            continue
+        raise ValueError('Invalid amount bounds accepted')
     return {'stabletravel': travel, 'stablestudio': studio}
 
 
@@ -174,12 +194,12 @@ def main():
         entry = read(service + '.well-known.json')
         origin = document['servers'][0]['url']
         require(entry == {'x402Version': 2, 'openapi': [origin + '/openapi.json']},
-                'Incorrect Option A entry or URL')
+                'Incorrect entry or URL')
         for item in document['paths'].values():
             for operation in item.values():
                 if isinstance(operation, dict) and 'x-x402' in operation:
-                    require(operation['x-x402']['x402Version'] == entry['x402Version'],
-                            'Entry and operation protocol versions differ')
+                    # The entry carries the protocol version; operations do not repeat it.
+                    require('x402Version' not in operation['x-x402'], 'Operation repeats the entry version')
         check_refs(document, document)
         snapshot = EXAMPLES / (service + '.final.openapi.json')
         if args.write:
@@ -198,7 +218,7 @@ def main():
             for path, content in [(destination / 'openapi.json', document),
                                   (destination / '.well-known/x402', entry)]:
                 path.write_text(json.dumps(content, indent=2) + '\n')
-    print('PASS: source integrity, references, direct/overlay equivalence, preserved contracts, optional prices and ranges, no vendor fields, authentication, entry URLs, missing target')
+    print('PASS: source integrity, references, direct/overlay equivalence, preserved contracts, documented and live amounts agree, optional amount ranges, no vendor fields, authentication, entry URLs, missing target')
 
 
 if __name__ == '__main__':

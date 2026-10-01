@@ -1,9 +1,6 @@
 {
-  "price-omitted": {
-    "x402Version": 2
-  },
+  "terms-omitted": {},
   "payment-schemes": {
-    "x402Version": 2,
     "accepts": [
       {
         "scheme": "exact",
@@ -20,57 +17,37 @@
     ]
   },
   "multiple-networks": {
-    "x402Version": 2,
     "accepts": [
       {
         "scheme": "exact",
         "network": "eip155:8453",
-        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "minAmount": "10000",
+        "maxAmount": "10000"
       },
       {
         "scheme": "exact",
         "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73k",
-        "asset": "31566704"
+        "asset": "31566704",
+        "minAmount": "10000",
+        "maxAmount": "10000"
       }
     ]
   },
   "siwx-with-payment": {
-    "x402Version": 2,
     "accepts": [
       {
         "scheme": "exact",
         "network": "eip155:8453"
       }
     ],
-    "extensions": [
-      "sign-in-with-x"
-    ]
+    "extensions": {
+      "sign-in-with-x": {}
+    }
   },
   "siwx-authentication-only": {
-    "x402Version": 2,
-    "extensions": [
-      "sign-in-with-x"
-    ]
-  },
-  "stealth-recipient": {
-    "x402Version": 2,
-    "accepts": [
-      {
-        "scheme": "mechanism-defined-scheme",
-        "network": "eip155:8453",
-        "payToType": "stealth"
-      }
-    ]
-  },
-  "role-recipient": {
-    "x402Version": 2,
-    "accepts": [
-      {
-        "scheme": "mechanism-defined-scheme",
-        "network": "eip155:8453",
-        "payTo": "mechanism-defined-role",
-        "payToType": "role"
-      }
-    ]
+    "extensions": {
+      "sign-in-with-x": {}
+    }
   }
 }
