@@ -11,6 +11,10 @@ Define a domain discovery profile for x402 services with two elements:
 
 Publishers may generate the final OpenAPI description directly or compose it with an OpenAPI Overlay. Both publication paths produce the same contract for clients. The publisher controls publication and may delegate generation or hosting to a provider.
 
+## Conventions
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in BCP 14 ([RFC 2119](https://www.rfc-editor.org/rfc/rfc2119), [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174)) when, and only when, they appear in all capitals, as shown here.
+
 ## Motivation
 
 Clients need to discover a service's operations, understand its input and output contracts, and assess payment compatibility before making a request. OpenAPI already describes operations, schemas, and authentication. Adding x402 metadata to that description lets clients evaluate the API and its payment capabilities together.
