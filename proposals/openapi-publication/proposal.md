@@ -59,7 +59,7 @@ Discovery describes advertised capabilities. The live x402 exchange remains auth
 
 ## Versioning and protocol integration
 
-Discovery is part of the x402 protocol rather than a separately versioned profile. The entry declares the supported protocol version through `x402Version`:
+Discovery is part of the x402 protocol. The entry declares the supported protocol version through `x402Version`:
 
 ```json
 {
@@ -71,10 +71,6 @@ Discovery is part of the x402 protocol rather than a separately versioned profil
 The entry's `x402Version` identifies the x402 protocol version that applies to every annotation in the linked documents, initially `2`. Clients MUST NOT interpret a missing or unsupported version as `2`. Operations do not repeat the version: under [origin binding](#origin-binding), annotations are meaningful only through an entry. Discovery changes follow the protocol's specification and compatibility process. Rules for advertising multiple protocol versions in one entry remain to be defined.
 
 Because the well-known entry and OpenAPI annotations are HTTP-specific, they would be specified in the HTTP transport specification (`specs/transports-v2/http.md`) rather than in the transport-agnostic core specification. The annotation reuses core types and identifiers (`scheme`, `network`, `asset`, `amount`, extension keys) without redefining them. Other transports, such as MCP, can define their own discovery later.
-
-### Alternatives considered
-
-A separately versioned profile would add a `discoveryVersion` member to the entry, so the discovery format could evolve without a protocol version change. This proposal does not take that approach because it gives implementers a second version and compatibility policy for one feature. The working group can revisit the choice.
 
 ## Discovery entry
 
