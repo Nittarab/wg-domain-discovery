@@ -9,12 +9,12 @@ The fixtures use the author-preferred Option A: discovery within the x402 protoc
 | Case | Example |
 | --- | --- |
 | Fixed price, exact payment, public recipient | `stabletravel.overlay.json` — complete overlay for one real data endpoint |
-| Price range, payment options omitted, asynchronous follow-up | Generated StableStudio document from the captured operations |
+| Price range, payment options omitted, asynchronous follow-up with an OpenAPI link | Generated StableStudio document from the captured operations |
 | Price and payment options omitted | `annotation-variants.json`: `price-omitted` |
 | Multiple payment schemes | `annotation-variants.json`: `payment-schemes` |
 | Multiple networks | `annotation-variants.json`: `multiple-networks` |
 | Payment with SIWX support | `annotation-variants.json`: `siwx-with-payment` |
-| Authentication only | `annotation-variants.json`: `siwx-authentication-only`; proposal includes its security declaration |
+| Authentication only | StableStudio `GET /api/jobs/{jobId}`; `annotation-variants.json`: `siwx-authentication-only` |
 | Scheme-defined recipient role | `annotation-variants.json`: `role-recipient` |
 | Stealth recipient signal | `annotation-variants.json`: `stealth-recipient` |
 
@@ -38,9 +38,9 @@ The check verifies captured operation hashes, local references, direct/overlay e
 
 Sources were captured on 21 September 2026. `evidence.json` records source and operation hashes. Files ending in `.source.openapi.json` retain the selected source operations and their schemas.
 
-StableTravel uses `GET /api/seats-aero/routes?source=united`. Its documentation supplies the fixed USD price. An unsigned request returned HTTP 402; `stabletravel.challenge-excerpt.json` records one observed Base payment option and a Bazaar output example. No payment was made. The live challenge also advertised Solana, so the selected option is not exhaustive. The output example is server-supplied metadata, not a purchased response.
+StableTravel uses `GET /api/seats-aero/routes?source=united`. Its documentation supplies the fixed USD price, written as `0.010000` in the source and normalized to `0.01`. The build appends "Charged per request." to the captured runtime description. An unsigned request returned HTTP 402; `stabletravel.challenge-excerpt.json` records one observed Base payment option and a Bazaar output example. No payment was made. The live challenge also advertised Solana, so the selected option is not exhaustive. The output example is server-supplied metadata, not a purchased response.
 
-StableStudio uses `POST /api/generate/nano-banana-pro/generate` and `GET /api/jobs/{jobId}`. The source supplies the USD price range and polling security declaration. The build adds the required string `jobId` path parameter omitted by the source. It retains the source response schemas, including the unconstrained `result` field.
+StableStudio uses `POST /api/generate/nano-banana-pro/generate` and `GET /api/jobs/{jobId}`. The source supplies the USD price range and polling security declaration. The build adds the required string `jobId` path parameter omitted by the source, an operation `description` for the generate operation, an OpenAPI link from the generate response to the polling operation, a description for the `siwx` security scheme, and an authentication-only `x-x402` annotation on the polling operation, whose SIWX requirement the source documents. It retains the source response schemas, including the unconstrained `result` field.
 
 ## Source conversion
 

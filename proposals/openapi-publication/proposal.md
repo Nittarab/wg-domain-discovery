@@ -4,12 +4,32 @@ Draft proposal — 21 September 2026
 
 ## Proposal
 
-Define a domain discovery profile for x402 services with two elements:
+Given a domain, a client needs to learn which operations it offers, what they cost, and how to pay, before making a request. Define a discovery profile for x402 services with two elements:
 
 - A JSON document at `/.well-known/x402` that links to the service's final OpenAPI descriptions.
 - An operation-level `x-x402` extension that advertises the x402 version, optional prices, payment options, and extension capabilities.
 
 Publishers may generate the final OpenAPI description directly or compose it with an OpenAPI Overlay. Both publication paths produce the same contract for clients. The publisher controls publication and may delegate generation or hosting to a provider.
+
+## Scope
+
+In scope:
+
+- A per-host entry at `/.well-known/x402` that links to final OpenAPI descriptions.
+- The operation-level `x-x402` annotation: protocol version, advertised price range, payment options, and supported extensions.
+- Direct and overlay publication paths that produce the same client-facing description.
+- Client interpretation rules: missing information means unspecified, annotations apply only to operations on the entry's origin, and the live exchange is authoritative.
+- The HTTP transport.
+
+Out of scope:
+
+- **Finding domains.** Registries, crawling, search, and catalogs such as Bazaar. This profile starts from a known domain.
+- **Ownership and identity.** Proving that the domain operator controls an advertised `payTo`, or establishing who the operator is. Discovery relies on HTTPS for document integrity and does not define signed discovery documents. These questions belong with the Identity working group.
+- **Trust, reputation, and service quality.**
+- **Host-wide metadata fields,** such as facilitators or signing keys. The entry admits them; their definitions are deferred to host-level discovery proposals.
+- **Other transports,** such as MCP and A2A.
+- **Tax** metadata, calculation, and legal determinations.
+- **Changes to the runtime payment flow, SDKs, or SIWX entitlement rules.**
 
 ## Conventions
 
@@ -25,7 +45,7 @@ Discovery describes advertised capabilities. The live x402 exchange remains auth
 
 ## Design principles
 
-1. **Publisher control.** Publication is opt-in. The publisher chooses the advertised operations and authorizes any provider that generates or hosts the description.
+1. **Publisher control.** Publication is opt-in. The publisher chooses the advertised operations and authorizes any provider that generates or hosts the description. A domain's entry advertises only that domain's operations.
 2. **A small entry and a complete API description.** `/.well-known/x402` points to final OpenAPI documents. Inputs, outputs, authentication, and operation-level payment metadata remain together in OpenAPI.
 3. **Reuse existing standards.** Use OpenAPI for API contracts, OpenAPI Overlay for optional composition, and existing x402 identifiers for payment capabilities.
 4. **Equivalent publication paths.** Direct generation and overlay composition produce the same client-facing contract. A client does not need to apply overlays, and a publisher does not need a managed provider to participate.
@@ -88,6 +108,12 @@ The entry contains document locations. Operation definitions, authentication, pr
 Clients MUST ignore entry members they do not recognize. This keeps the entry extensible without a new version for each added field.
 
 The path follows RFC 8615 and would be registered in the IANA Well-Known URIs registry as `x402`. Like `openid-configuration` and `oauth-authorization-server`, it carries no file extension; `Content-Type` identifies the format.
+
+### Origin binding
+
+An entry advertises operations only for its own origin. Clients MUST apply `x-x402` annotations only to operations whose server URL has the same origin (scheme, host, and port) as the entry, and MUST ignore annotations on other operations. Linked OpenAPI documents MAY be hosted on another origin, for example by a provider; the entry on the publisher's origin authorizes them. Because relative server URLs resolve against the document's location, a document hosted elsewhere SHOULD use absolute server URLs. A service available on several origins publishes an entry on each.
+
+This rule prevents one site from advertising terms for another site's operations. It does not prove who operates the origin or who controls an advertised recipient; see [Scope](#scope).
 
 ### Relationship to host-level metadata
 
@@ -187,13 +213,13 @@ The following complete OpenAPI Overlay applies to the service's base OpenAPI des
     {
       "target": "$['paths']['/api/seats-aero/routes']['get']",
       "update": {
-        "description": "List airline flight route pairs covered by a Seats.aero mileage program source. These are origin/destination airport pairs, not API routes.",
+        "description": "List airline flight route pairs covered by a Seats.aero mileage program source. These are origin/destination airport pairs, not API routes. Charged per request.",
         "x-x402": {
           "x402Version": 2,
           "price": {
             "currency": "USD",
-            "min": "0.010000",
-            "max": "0.010000"
+            "min": "0.01",
+            "max": "0.01"
           },
           "accepts": [
             {
@@ -289,10 +315,10 @@ The result below is the complete OpenAPI document for the single StableTravel en
             }
           }
         },
-        "description": "List airline flight route pairs covered by a Seats.aero mileage program source. These are origin/destination airport pairs, not API routes.",
+        "description": "List airline flight route pairs covered by a Seats.aero mileage program source. These are origin/destination airport pairs, not API routes. Charged per request.",
         "x-x402": {
           "x402Version": 2,
-          "price": {"currency": "USD", "min": "0.010000", "max": "0.010000"},
+          "price": {"currency": "USD", "min": "0.01", "max": "0.01"},
           "accepts": [
             {
               "scheme": "exact",
@@ -327,13 +353,13 @@ StableStudio's `POST /api/generate/nano-banana-pro/generate` accepts a prompt, a
 }
 ```
 
-Payment options are omitted when no reusable option is established. The live challenge supplies terms for the selected prompt and image settings.
+The `min` of `0` is copied from the service's published range. A zero lower bound does not declare free access; clients still obtain terms from the live challenge. Payment options are omitted when no reusable option is established. The operation `description` states that the price is dynamic within the range.
 
-The description also includes `GET /api/jobs/{jobId}` with its SIWX security declaration. The authentication response's use of HTTP 402 does not itself establish a payment requirement.
+The description also includes `GET /api/jobs/{jobId}`. It declares SIWX in `security` and advertises `"extensions": ["sign-in-with-x"]` without price or payment options. The generate response uses an OpenAPI link to pass `jobId` to that operation, so the asynchronous follow-up is machine-readable without new fields. The authentication response's use of HTTP 402 does not itself establish a payment requirement.
 
 ### Additional annotation variations
 
-The following operation fragments illustrate distinct cases permitted by the proposed contract. They are independent alternatives, not cumulative overlay updates, and do not assert additional capabilities for the Stable services. The fixed-price example above also covers a public address; the asynchronous example covers a price range and omitted payment options.
+The following operation fragments illustrate distinct cases permitted by the proposed contract. They are independent alternatives, not cumulative overlay updates, and do not assert additional capabilities for the Stable services. The fixed-price example above also covers a public address; the asynchronous example covers a price range, omitted payment options, and an authentication-only follow-up.
 
 #### Price and payment options omitted
 
@@ -418,7 +444,7 @@ An operation can advertise both payment and SIWX. Its description states when a 
 
 #### Authentication without payment
 
-An authentication-only operation advertises SIWX without price or payment options. Its OpenAPI Operation Object references the corresponding security scheme:
+An authentication-only operation advertises SIWX without price or payment options, as the StableStudio polling operation does. Its OpenAPI Operation Object references the corresponding security scheme:
 
 ```json
 {

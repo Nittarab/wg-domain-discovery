@@ -102,6 +102,14 @@
                   "additionalProperties": false
                 }
               }
+            },
+            "links": {
+              "pollJob": {
+                "operationId": "jobs_status",
+                "parameters": {
+                  "jobId": "$response.body#/jobId"
+                }
+              }
             }
           },
           "402": {
@@ -116,6 +124,7 @@
             }
           }
         },
+        "description": "Generate an image with Nano Banana Pro. Returns an asynchronous job; poll its pollUrl with SIWX until the job is complete or failed. The price is dynamic within the advertised range; the live challenge gives the exact amount for the request.",
         "x-x402": {
           "x402Version": 2,
           "price": {
@@ -204,7 +213,13 @@
               "type": "string"
             }
           }
-        ]
+        ],
+        "x-x402": {
+          "x402Version": 2,
+          "extensions": [
+            "sign-in-with-x"
+          ]
+        }
       }
     }
   },
@@ -213,7 +228,8 @@
       "siwx": {
         "type": "apiKey",
         "in": "header",
-        "name": "SIGN-IN-WITH-X"
+        "name": "SIGN-IN-WITH-X",
+        "description": "Base64-encoded SIWX proof obtained by signing a fresh server challenge."
       }
     }
   }

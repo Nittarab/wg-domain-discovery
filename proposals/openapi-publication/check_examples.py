@@ -92,11 +92,12 @@ def build():
                     op.pop('x-payment-info', None)
     travel = copy.deepcopy(clean['stabletravel'])
     operation = travel['paths'][TRAVEL_PATH]['get']
-    operation['description'] = challenge['resource']['description']
+    operation['description'] = challenge['resource']['description'] + ' Charged per request.'
     source_price = sources['stabletravel']['paths'][TRAVEL_PATH]['get']['x-payment-info']['price']
+    amount = str(Decimal(source_price['amount']).normalize())
     operation['x-x402'] = {
         'x402Version': 2,
-        'price': {'currency': source_price['currency'], 'min': source_price['amount'], 'max': source_price['amount']},
+        'price': {'currency': source_price['currency'], 'min': amount, 'max': amount},
         'accepts': [dict({key: option[key] for key in ['scheme', 'network', 'asset', 'payTo']},
                          payToType='address') for option in challenge['accepts']]}
     check_price(operation['x-x402'])
@@ -121,6 +122,15 @@ def build():
         raise ValueError('Missing target did not fail')
     studio = copy.deepcopy(clean['stablestudio'])
     source_price = sources['stablestudio']['paths'][STUDIO_PATH]['post']['x-payment-info']['price']
+    generate = studio['paths'][STUDIO_PATH]['post']
+    generate['description'] = (
+        'Generate an image with Nano Banana Pro. Returns an asynchronous job; poll its pollUrl with SIWX '
+        'until the job is complete or failed. The price is dynamic within the advertised range; '
+        'the live challenge gives the exact amount for the request.')
+    generate['responses']['200']['links'] = {'pollJob': {
+        'operationId': 'jobs_status', 'parameters': {'jobId': '$response.body#/jobId'}}}
+    studio['components']['securitySchemes']['siwx']['description'] = (
+        'Base64-encoded SIWX proof obtained by signing a fresh server challenge.')
     studio['paths'][STUDIO_PATH]['post']['x-x402'] = {
         'x402Version': 2,
         'price': {key: source_price[key] for key in ['currency', 'min', 'max']}}
@@ -130,8 +140,12 @@ def build():
     poll = studio['paths']['/api/jobs/{jobId}']['get']
     poll['parameters'] = [{'name': 'jobId', 'in': 'path', 'required': True,
                            'schema': {'type': 'string'}}]
-    require('x-x402' not in poll and poll['security'] == [{'siwx': []}],
+    poll['x-x402'] = {'x402Version': 2, 'extensions': ['sign-in-with-x']}
+    require(poll['security'] == [{'siwx': []}] and not {'price', 'accepts'} & set(poll['x-x402']),
             'Polling authentication incorrectly changed to payment')
+    require(any(op.get('operationId') == 'jobs_status'
+                for item in studio['paths'].values() for op in item.values() if isinstance(op, dict)),
+            'Generate link targets a missing operation')
     require(studio['paths'][STUDIO_PATH]['post']['x-x402']['price'] ==
             {'currency': 'USD', 'min': '0', 'max': '10.00'},
             'Captured price range changed')
