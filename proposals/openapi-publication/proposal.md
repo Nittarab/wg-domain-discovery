@@ -6,7 +6,7 @@ Draft proposal — 21 September 2026
 
 Define a domain discovery profile for x402 services with two elements:
 
-- A JSON document at `/.well-known/x402.json` that links to the service's final OpenAPI descriptions.
+- A JSON document at `/.well-known/x402` that links to the service's final OpenAPI descriptions.
 - An operation-level `x-x402` extension that advertises the x402 version, optional prices, payment options, and extension capabilities.
 
 Publishers may generate the final OpenAPI description directly or compose it with an OpenAPI Overlay. Both publication paths produce the same contract for clients. The publisher controls publication and may delegate generation or hosting to a provider.
@@ -22,7 +22,7 @@ Discovery describes advertised capabilities. The live x402 exchange remains auth
 ## Design principles
 
 1. **Publisher control.** Publication is opt-in. The publisher chooses the advertised operations and authorizes any provider that generates or hosts the description.
-2. **A small entry and a complete API description.** `/.well-known/x402.json` points to final OpenAPI documents. Inputs, outputs, authentication, and operation-level payment metadata remain together in OpenAPI.
+2. **A small entry and a complete API description.** `/.well-known/x402` points to final OpenAPI documents. Inputs, outputs, authentication, and operation-level payment metadata remain together in OpenAPI.
 3. **Reuse existing standards.** Use OpenAPI for API contracts, OpenAPI Overlay for optional composition, and existing x402 identifiers for payment capabilities.
 4. **Equivalent publication paths.** Direct generation and overlay composition produce the same client-facing contract. A client does not need to apply overlays, and a publisher does not need a managed provider to participate.
 5. **Advertise only what is known.** Prices, payment options, and recipients are optional. Missing information means unspecified; it does not imply free access or unsupported payment capabilities.
@@ -33,7 +33,7 @@ Discovery describes advertised capabilities. The live x402 exchange remains auth
 
 ## Protocol integration and versioning
 
-Two approaches are proposed for consideration. Both use `/.well-known/x402.json` and the same OpenAPI annotations.
+Two approaches are proposed for consideration. Both use `/.well-known/x402` and the same OpenAPI annotations.
 
 ### Option A Discovery within the x402 protocol — preferred
 
@@ -69,7 +69,7 @@ This is the author's preference, not an adopted working-group decision. The exam
 
 ## Discovery entry
 
-The publisher exposes `/.well-known/x402.json` as JSON with `Content-Type: application/json`.
+The publisher exposes `/.well-known/x402` as JSON with `Content-Type: application/json`.
 
 | Field | Type | Definition |
 | --- | --- | --- |
@@ -78,6 +78,14 @@ The publisher exposes `/.well-known/x402.json` as JSON with `Content-Type: appli
 | `x402Version` | Integer | Required as `2` under Option A; identifies the supported x402 protocol version. Not an entry field under Option B. |
 
 The entry contains document locations. Operation definitions, authentication, prices, and payment options belong in the linked OpenAPI descriptions.
+
+Clients MUST ignore entry members they do not recognize. This keeps the entry extensible without a new version for each added field.
+
+The path follows RFC 8615 and would be registered in the IANA Well-Known URIs registry as `x402`. Like `openid-configuration` and `oauth-authorization-server`, it carries no file extension; `Content-Type` identifies the format.
+
+### Relationship to host-level metadata
+
+x402 should have one well-known document per host, not one per proposal. Host-wide metadata, such as facilitators or signing keys, belongs as additional members of this entry rather than in a separate document at the same path. Defining those members is out of scope here and should be aligned with other host-level discovery proposals in the working group. A client that needs only host-wide metadata reads the entry without fetching the linked OpenAPI descriptions.
 
 ## OpenAPI discovery annotation
 
@@ -108,7 +116,7 @@ A range describes advertised prices across supported inputs. Clients MUST NOT in
 
 `accepts` advertises a non-exhaustive set of scheme/network combinations. The identifiers `scheme`, `network`, `asset`, and `payTo` retain their x402 v2 meanings. `scheme` is an open string: `exact`, `upto`, `batch-settlement`, and future schemes use the same field. Clients need an implementation of the selected scheme; an unknown identifier MUST NOT be treated as `exact`.
 
-Discovery options are summaries, not runtime `PaymentRequirements` objects. Clients MUST obtain fresh requirements before payment. The live exchange supplies the atomic asset `amount`, `maxTimeoutSeconds`, and mechanism-specific `extra` fields. Those fields are not part of this discovery annotation. A price range does not imply a particular payment scheme.
+Discovery options are summaries, not runtime `PaymentRequirements` objects. Clients MUST obtain fresh requirements before payment. The live exchange supplies the atomic asset `amount`, `maxTimeoutSeconds`, and mechanism-specific `extra` fields. Those fields are not part of this discovery annotation: the atomic amount depends on the asset and often on the request, so a static copy would drift from the live terms. The single `price` range in a reference currency applies across all advertised options. A price range does not imply a particular payment scheme.
 
 Optional `payTo` identifies an advertised recipient. It does not prove ownership. The proposed `payToType` distinguishes a public wallet `address`, a scheme-defined recipient `role`, and `stealth` recipient handling. `address` and `role` require `payTo`; `stealth` MUST omit it and signals that clients cannot assume a reusable public recipient. The payment mechanism supplies the runtime recipient. If payout information is unknown, both fields are omitted.
 
@@ -209,7 +217,7 @@ Applying this overlay preserves the operation's input and success-response contr
 
 ### Final combined OpenAPI document
 
-The result below is the complete OpenAPI document for the single StableTravel endpoint. It includes the base operation's required `source` parameter and full response schema, together with the overlay's description, payment challenge header, and `x-x402` annotation. This is the document referenced by `/.well-known/x402.json` and read by clients.
+The result below is the complete OpenAPI document for the single StableTravel endpoint. It includes the base operation's required `source` parameter and full response schema, together with the overlay's description, payment challenge header, and `x-x402` annotation. This is the document referenced by `/.well-known/x402` and read by clients.
 
 <!-- final-stabletravel:start -->
 ```json
@@ -349,6 +357,28 @@ Separate options advertise each supported scheme/network combination. The operat
       {
         "scheme": "batch-settlement",
         "network": "eip155:8453"
+      }
+    ]
+  }
+}
+```
+
+Options can also span networks. Each uses the canonical CAIP-2 identifier; for Algorand MainNet that is the first 32 characters of the genesis hash, not `mainnet`:
+
+```json
+{
+  "x-x402": {
+    "x402Version": 2,
+    "accepts": [
+      {
+        "scheme": "exact",
+        "network": "eip155:8453",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+      },
+      {
+        "scheme": "exact",
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73k",
+        "asset": "31566704"
       }
     ]
   }
