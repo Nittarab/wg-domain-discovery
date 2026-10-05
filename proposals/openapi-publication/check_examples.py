@@ -7,8 +7,11 @@ import json
 from pathlib import Path
 import re
 
+from jsonschema import Draft202012Validator, ValidationError
+
 ROOT = Path(__file__).resolve().parent
 EXAMPLES = ROOT / 'examples'
+ANNOTATION_VALIDATOR = Draft202012Validator(json.loads((ROOT / 'x-x402.schema.json').read_text()))
 TRAVEL_PATH = '/api/seats-aero/routes'
 STUDIO_PATH = '/api/generate/nano-banana-pro/generate'
 
@@ -81,6 +84,29 @@ def check_amounts(annotation):
             require(int(option['minAmount']) <= int(option['maxAmount']), 'minAmount exceeds maxAmount')
 
 
+def check_annotation(annotation, location):
+    try:
+        ANNOTATION_VALIDATOR.validate(annotation)
+        check_amounts(annotation)
+    except ValidationError as error:
+        raise ValueError(f'{location}{error.json_path[1:]} [{error.validator}]: {error.message}') from error
+    except ValueError as error:
+        raise ValueError(f'{location}: {error}') from error
+
+
+def check_annotations(value, location):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_location = f'{location}[{key!r}]'
+            if key == 'x-x402':
+                check_annotation(child, child_location)
+            else:
+                check_annotations(child, child_location)
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            check_annotations(child, f'{location}[{index}]')
+
+
 def option_summary(option, low, high):
     return {'scheme': option['scheme'], 'network': option['network'], 'asset': option['asset'],
             'minAmount': low, 'maxAmount': high}
@@ -122,6 +148,7 @@ def build():
         'description': 'Base64-encoded x402 v2 PaymentRequired object. Obtain fresh request-specific terms before payment.',
         'schema': {'type': 'string'}}}
     overlay = read('stabletravel.overlay.json')
+    check_annotations(overlay, 'stabletravel.overlay.json')
     require(compose(clean['stabletravel'], overlay) == travel,
             'Direct and overlay publication differ')
     require(operation['parameters'] == sources['stabletravel']['paths'][TRAVEL_PATH]['get']['parameters'],
@@ -190,7 +217,18 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--write', action='store_true', help='Refresh tracked final examples and write publication artifacts to build/')
     args = parser.parse_args()
+    ANNOTATION_VALIDATOR.check_schema(ANNOTATION_VALIDATOR.schema)
+    for name, annotation in read('annotation-variants.json').items():
+        check_annotation(annotation, f'annotation-variants.json[{name!r}]')
+    proposal = (ROOT / 'proposal.md').read_text()
+    for index, snippet in enumerate(re.findall(r'```json\n(.*?)\n```', proposal, re.DOTALL), 1):
+        if '"x-x402"' in snippet:
+            # Some examples show an object member rather than a complete object.
+            if snippet.lstrip().startswith('"x-x402":'):
+                snippet = '{' + snippet + '}'
+            check_annotations(json.loads(snippet), f'proposal.md JSON block {index}')
     for service, document in build().items():
+        check_annotations(document, service + '.final.openapi.json')
         entry = read(service + '.well-known.json')
         origin = document['servers'][0]['url']
         require(entry == {'x402Version': 2, 'openapi': [origin + '/openapi.json']},
@@ -207,7 +245,6 @@ def main():
         require(json.loads(snapshot.read_text()) == document,
                 'Final example differs from generated output: ' + service)
         if service == 'stabletravel':
-            proposal = (ROOT / 'proposal.md').read_text()
             inline = proposal.split('<!-- final-stabletravel:start -->', 1)[1].split(
                 '<!-- final-stabletravel:end -->', 1)[0]
             require(json.loads(inline.split('```json\n', 1)[1].split('```', 1)[0]) == document,
@@ -218,8 +255,11 @@ def main():
             for path, content in [(destination / 'openapi.json', document),
                                   (destination / '.well-known/x402', entry)]:
                 path.write_text(json.dumps(content, indent=2) + '\n')
-    print('PASS: source integrity, references, direct/overlay equivalence, preserved contracts, documented and live amounts agree, optional amount ranges, no vendor fields, authentication, entry URLs, missing target')
+    print('PASS: annotation schema, source integrity, references, direct/overlay equivalence, preserved contracts, documented and live amounts agree, optional amount ranges, no vendor fields, authentication, entry URLs, missing target')
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except ValueError as error:
+        raise SystemExit(str(error))
