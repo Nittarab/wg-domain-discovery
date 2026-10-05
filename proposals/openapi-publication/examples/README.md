@@ -18,9 +18,23 @@ The fixtures declare `x402Version: 2` once, in the entry. Operation annotations 
 
 Annotation variants are independent contract examples, not statements about Stable service support. They are not payment instructions or deployable payment configurations. The full single-endpoint overlay and the variations are also shown inline in the proposal.
 
-## Generate the publication artifacts
+## Validate examples and generate publication artifacts
 
-From the repository root:
+Install the checker dependency in a virtual environment, from the repository root:
+
+```sh
+python3 -m venv proposals/openapi-publication/.venv
+. proposals/openapi-publication/.venv/bin/activate
+python3 -m pip install -r proposals/openapi-publication/requirements.txt
+```
+
+Validate examples without changing files:
+
+```sh
+python3 proposals/openapi-publication/check_examples.py
+```
+
+To regenerate the publication artifacts:
 
 ```sh
 python3 proposals/openapi-publication/check_examples.py --write
@@ -30,7 +44,16 @@ The generated final documents are committed as [stabletravel.final.openapi.json]
 
 Publication outputs are also written under `proposals/openapi-publication/build/`, with one `openapi.json` and one `.well-known/x402` entry per service. The command is offline and does not publish files or make payments.
 
-The check verifies captured operation hashes, local references, direct/overlay equivalence, preservation of input/output contracts, agreement between documented prices and live amounts, optional amount ranges, authentication, entry URLs, and rejection of missing overlay targets. It is not a general OpenAPI, JSON Schema, or Overlay validator. Validate annotations separately against `../x-x402.schema.json`.
+The checker validates annotation variants, overlay annotations, inline JSON annotations in the proposal, and generated document annotations against `../x-x402.schema.json`.
+It checks amount ordering separately because JSON Schema does not compare the two bound values.
+The existing checks cover captured operation hashes, local references, direct/overlay equivalence, preservation of input/output contracts, agreement between documented prices and live amounts, authentication, entry URLs, and missing overlay targets.
+It does not validate full OpenAPI or Overlay documents.
+
+Run the regression tests:
+
+```sh
+python3 -m unittest discover -s proposals/openapi-publication -p test_check_examples.py
+```
 
 ## Source evidence
 
